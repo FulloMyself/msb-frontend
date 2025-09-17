@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MSB Finance - Your Financial Partner</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="header-content">
+        <div class="logo">🏦 MSB Finance</div>
+        <div class="nav-buttons" id="navButtons">
+          <button class="btn-secondary" onclick="showScreen('login')">Login</button>
+          <button class="btn-primary" onclick="showScreen('register')">Get Started</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="main-content">
+      <!-- Hero Section -->
+      <div class="hero" id="hero">
+        <h1>Your Financial Dreams, Our Priority</h1>
+        <p>Quick and easy loans from R300 up to R4 000</p>
+      </div>
+
+      <!-- Registration Screen -->
+      <div class="screen" id="register">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: #333;">Create Your Account</h2>
+        <form id="registerForm">
+          <div class="form-group">
+            <label for="regName">Full Name</label>
+            <input type="text" id="regName" required>
+          </div>
+          <div class="form-group">
+            <label for="regEmail">Email Address</label>
+            <input type="email" id="regEmail" required>
+          </div>
+          <div class="form-group">
+            <label for="regPhone">Phone Number</label>
+            <input type="tel" id="regPhone" required>
+          </div>
+          <div class="form-group">
+            <label for="regPassword">Password</label>
+            <input type="password" id="regPassword" required>
+          </div>
+          <div class="form-group">
+            <label for="regConfirmPassword">Confirm Password</label>
+            <input type="password" id="regConfirmPassword" required>
+          </div>
+          <div id="regError" class="error"></div>
+          <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;">Create Account</button>
+          <p style="text-align: center; margin-top: 1rem;">
+            Already have an account? <a href="#" onclick="showScreen('login')" style="color: #667eea;">Login here</a>
+          </p>
+        </form>
+      </div>
+
+      <!-- Login Screen -->
+      <div class="screen" id="login">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: #333;">Welcome Back</h2>
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="loginEmail">Email Address</label>
+            <input type="email" id="loginEmail" required>
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" required>
+          </div>
+          <div id="loginError" class="error"></div>
+          <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;">Login</button>
+          <p style="text-align: center; margin-top: 1rem;">
+            Don’t have an account? <a href="#" onclick="showScreen('register')" style="color: #667eea;">Register here</a>
+          </p>
+        </form>
+      </div>
+
+      <!-- Dashboard Screen -->
+      <div class="screen" id="dashboard">
+        <div class="user-info">
+          <h2>Welcome, <span id="userName"></span>!</h2>
+          <p id="userEmail"></p>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dashboard-card">
+            <h3>Apply for New Loan</h3>
+            <p>Start your loan application process</p>
+            <button class="btn-primary" onclick="showScreen('loanApplication')" style="margin-top: 1rem;">Apply Now</button>
+          </div>
+          
+          <div class="dashboard-card">
+            <h3>Upload Documents</h3>
+            <p>Upload required documents for verification</p>
+            <button class="btn-secondary" onclick="showScreen('documents')" style="margin-top: 1rem;">Upload Files</button>
+          </div>
+          
+          <div class="dashboard-card">
+            <h3>Loan Status</h3>
+            <div id="loanStatusContainer">
+              <p>No active loan applications</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem;">
+          <button class="btn-secondary" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <!-- Loan Application Screen -->
+      <div class="screen" id="loanApplication">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: #333;">Loan Application</h2>
+        <form id="loanForm">
+          <div class="form-group">
+            <label for="loanAmount">Loan Amount (R)</label>
+            <input type="number" id="loanAmount" min="300" max="4000" required>
+          </div>
+          <div class="form-group">
+            <label for="loanTerm">Loan Term (months)</label>
+            <select id="loanTerm" required>
+              <option value="">Select term</option>
+              <option value="1">1 month</option>
+              <option value="2">2 months</option>
+              <option value="3">3 months</option>
+              <option value="6">6 months</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="income">Monthly Income (R)</label>
+            <input type="number" id="income" min="1000" required>
+          </div>
+          <div class="form-group">
+            <label for="employment">Employment Status</label>
+            <select id="employment" required>
+              <option value="">Select status</option>
+              <option value="employed">Full-time Employed</option>
+              <option value="self-employed">Self-employed</option>
+              <option value="part-time">Part-time</option>
+              <option value="unemployed">Unemployed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="purpose">Loan Purpose</label>
+            <textarea id="purpose" rows="3" placeholder="Briefly describe the purpose of this loan"></textarea>
+          </div>
+          <div id="loanError" class="error"></div>
+          <div id="loanSuccess" class="success"></div>
+          <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+            <button type="button" class="btn-secondary" onclick="showScreen('dashboard')" style="flex: 1;">Back</button>
+            <button type="submit" class="btn-primary" style="flex: 2;">Submit Application</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Documents Screen -->
+      <div class="screen" id="documents">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: #333;">Document Upload</h2>
+        
+        <div class="file-upload" id="fileUpload">
+          <p>📄 Drag and drop files here or click to select</p>
+          <p style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
+            Accepted formats: PDF, JPG, PNG, DOC (Max 5MB each)
+          </p>
+          <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display: none;">
+        </div>
+
+        <div class="uploaded-files" id="uploadedFiles"></div>
+
+        <div id="docError" class="error"></div>
+        <div id="docSuccess" class="success"></div>
+
+        <div style="text-align: center; margin-top: 2rem;">
+          <button class="btn-secondary" onclick="showScreen('dashboard')">Back to Dashboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
