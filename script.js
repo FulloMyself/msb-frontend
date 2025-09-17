@@ -44,50 +44,123 @@ function toggleNavForAuth() {
     }
 }
 
-/* -------------------------
-   API Calls
-------------------------- */
+// ---------------------
+// API UTILS
+// ---------------------
+
+// Helper to get token from localStorage
+function token() {
+    return localStorage.getItem('token');
+}
+
+// ---------------------
+// AUTH
+// ---------------------
+
 async function apiRegister(data) {
     const res = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
     });
+
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Error registering: ${text}`);
+    }
+
     return await res.json();
 }
 
 async function apiLogin(data) {
     const res = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
     });
+
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Error logging in: ${text}`);
+    }
+
     return await res.json();
 }
 
+// ---------------------
+// LOANS
+// ---------------------
+
+// Submit a new loan
 async function apiSubmitLoan(data) {
     const res = await fetch(`${API_URL}/loans`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}` },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token()}`
+        },
         body: JSON.stringify(data)
     });
+
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Error submitting loan: ${text}`);
+    }
+
     return await res.json();
 }
 
+// Get logged-in user's loans
 async function apiGetLoans() {
-    const res = await fetch(`${API_URL}/loans`, { headers: { 'Authorization': `Bearer ${token()}` } });
+    const res = await fetch(`${API_URL}/loans/me`, {  // <-- correct URL
+        headers: { 'Authorization': `Bearer ${token()}` }
+    });
+
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Error fetching loans: ${text}`);
+    }
+
     return await res.json();
 }
 
+// ---------------------
+// DOCUMENTS
+// ---------------------
+
+// Upload files
 async function apiUploadFiles(files) {
     const formData = new FormData();
     files.forEach(f => formData.append('files', f));
-    const res = await fetch(`${API_URL}/docs/upload`, {
-        method: 'POST', headers: { 'Authorization': `Bearer ${token()}` }, body: formData
+
+    const res = await fetch(`${API_URL}/docs/upload`, {  // correct URL
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token()}` },
+        body: formData
     });
+
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Error uploading files: ${text}`);
+    }
+
     return await res.json();
 }
 
+// Get logged-in user's documents
 async function apiGetDocuments() {
-    const res = await fetch(`${API_URL}/docs`, { headers: { 'Authorization': `Bearer ${token()}` } });
+    const res = await fetch(`${API_URL}/docs/me`, {  // <-- correct URL
+        headers: { 'Authorization': `Bearer ${token()}` }
+    });
+
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Error fetching documents: ${text}`);
+    }
+
     return await res.json();
 }
+
 
 /* -------------------------
    Event handlers
@@ -180,34 +253,54 @@ async function handleFilesUpload(filesList) {
 
 async function loadUserDocuments() {
     try {
-        const res = await apiGetDocuments();
-        const docs = (res.docs || []).filter(d => d.user._id === currentUser.id);
-        const container = document.getElementById('uploadedFiles');
-        if (!docs.length) { container.innerHTML = ''; return; }
-        container.innerHTML = `
-            <h4 style="margin:1rem 0;">Uploaded Documents</h4>
-            ${docs.map(d => `<div class="file-item"><div><strong>${d.filename}</strong><br><small>${new Date(d.uploadedAt).toLocaleDateString()}</small></div></div>`).join('')}
-        `;
-    } catch (err) { console.error(err); }
-}
+        const data = await apiGetDocuments();
+        const container = document.getElementById('doc-list');
+        container.innerHTML = ''; // clear existing content
 
+        if (!data.docs || data.docs.length === 0) {
+            container.innerHTML = '<p>No documents uploaded yet.</p>';
+            return;
+        }
+
+        data.docs.forEach(doc => {
+            const div = document.createElement('div');
+            div.classList.add('doc-item');
+            div.innerHTML = `<a href="${doc.url}" target="_blank">${doc.filename}</a>`;
+            container.appendChild(div);
+        });
+    } catch (err) {
+        console.error(err);
+        alert('Failed to load documents.');
+    }
+}
 /* -------------------------
    Dashboard
 ------------------------- */
 async function loadLoanApplications() {
-    const container = document.getElementById('loanStatusContainer');
-    if (!container) return;
-    container.innerHTML = 'Loading...';
     try {
-        const res = await apiGetLoans();
-        const loans = res.loans || [];
-        if (!loans.length) { container.innerHTML = '<p>No active loan applications</p>'; return; }
-        container.innerHTML = loans.map(l => {
-            const applied = new Date(l.appliedAt || l.appliedAt).toLocaleDateString();
-            const statusClass = l.status === 'approved' ? 'status-approved' : l.status === 'rejected' ? 'status-rejected' : 'status-pending';
-            return `<div style="margin-bottom:1rem;"><strong>Loan</strong><br>Amount: R${Number(l.amount).toLocaleString()}<br>Term: ${l.termMonths || 1} month(s)<br>Status: <span class="loan-status ${statusClass}">${l.status.toUpperCase()}</span><br>Applied: ${applied}</div>`;
-        }).join('');
-    } catch (err) { container.innerHTML = '<p>Failed to load applications</p>'; console.error(err); }
+        const data = await apiGetLoans();
+        const container = document.getElementById('loan-list');
+        container.innerHTML = ''; // clear existing content
+
+        if (!data.loans || data.loans.length === 0) {
+            container.innerHTML = '<p>No loans applied yet.</p>';
+            return;
+        }
+
+        data.loans.forEach(loan => {
+            const div = document.createElement('div');
+            div.classList.add('loan-item');
+            div.innerHTML = `
+                <p>Amount: R${loan.amount}</p>
+                <p>Term: ${loan.termMonths} months</p>
+                <p>Purpose: ${loan.purpose}</p>
+            `;
+            container.appendChild(div);
+        });
+    } catch (err) {
+        console.error(err);
+        alert('Failed to load loans.');
+    }
 }
 
 function showDashboard() {
