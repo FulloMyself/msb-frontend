@@ -11,10 +11,11 @@ const MAX_LOAN = 4000;
    Helper functions
 ------------------------- */
 function token() { 
-    return localStorage.getItem('userToken'); 
+    return userToken; 
 }
 
 function setToken(t) { 
+    userToken = t;               // <--- update in-memory variable
     localStorage.setItem('userToken', t); 
 }
 
