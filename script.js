@@ -77,7 +77,7 @@ async function apiSubmitLoan(data) {
         method: 'POST',
         headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token()}`
+            'Authorization': `Bearer ${userToken}`
         },
         body: JSON.stringify(data)
     });
@@ -119,7 +119,7 @@ async function apiUploadFiles(files) {
     const res = await fetch(`${API_URL}/docs/upload`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${token()}`  // Only Authorization header
+            'Authorization': `Bearer ${userToken}`  // Only Authorization header
             // DO NOT set 'Content-Type' here
         },
         body: formData
@@ -187,6 +187,7 @@ if (loginForm) {
                 // ✅ Save token in memory and localStorage
                 userToken = res.token;       // keeps it in JS variable
                 setToken(userToken);         // stores in localStorage
+                setCurrentUser(res.user || res.admin);
 
                 // Save current user (works for user/admin)
                 const userData = res.user || res.admin;
