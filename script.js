@@ -2,7 +2,7 @@
    Config & State
 ------------------------- */
 const API_URL = 'https://msb-finance.onrender.com/api';
-let currentUser = null;
+let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 let userToken = localStorage.getItem('userToken') || null;
 const MIN_LOAN = 300;
 const MAX_LOAN = 4000;
@@ -10,9 +10,18 @@ const MAX_LOAN = 4000;
 /* -------------------------
    Helper functions
 ------------------------- */
-function token() { return userToken; }
-function setToken(t) { userToken = t; localStorage.setItem('userToken', t); }
-function setCurrentUser(user) { currentUser = user; localStorage.setItem('currentUser', JSON.stringify(user)); }
+function token() { 
+    return localStorage.getItem('userToken'); 
+}
+
+function setToken(t) { 
+    localStorage.setItem('userToken', t); 
+}
+
+function setCurrentUser(user) {
+    currentUser = user;
+    localStorage.setItem('currentUser', JSON.stringify(user));
+}
 
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -280,8 +289,11 @@ function showDashboard() {
    Logout
 ------------------------- */
 function logout() {
-    setCurrentUser(null); setToken(null); toggleNavForAuth();
-    showScreen('hero');
+    localStorage.removeItem('userToken');
+    localStorage.removeItem('currentUser');
+    currentUser = null;
+    // Optionally redirect or hide dashboard
+    showScreen('login');
 }
 
 /* -------------------------
