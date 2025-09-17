@@ -194,7 +194,7 @@ function setupEventListeners() {
         const password = document.getElementById('loginPassword').value;
         try {
             const res = await apiLogin({ email, password });
-            if (res.token) { setToken(res.token); setCurrentUser(res.user); toggleNavForAuth(); showDashboard(); }
+            if (res.token) { setToken(res.token); setCurrentUser(res.user); toggleNavForAuth(); showDashboard(res.user); }
             else showError('loginError', res.message || 'Login failed');
         } catch (err) { showError('loginError', err.message || JSON.stringify(err)); }
     });
@@ -303,7 +303,7 @@ async function loadLoanApplications() {
     }
 }
 
-function showDashboard() {
+function showDashboard(user) {
     if (!currentUser) {
         const saved = JSON.parse(localStorage.getItem('currentUser') || 'null');
         if (saved) currentUser = saved;
