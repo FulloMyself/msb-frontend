@@ -108,9 +108,12 @@ async function apiUploadFiles(files) {
     const formData = new FormData();
     files.forEach(f => formData.append('files', f));
 
-    const res = await fetch(`${API_URL}/docs/upload`, {  // /docs/upload is correct
+    const res = await fetch(`${API_URL}/docs/upload`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token()}` },
+        headers: {
+            'Authorization': `Bearer ${token()}`  // Only Authorization header
+            // DO NOT set 'Content-Type' here
+        },
         body: formData
     });
 
@@ -121,6 +124,7 @@ async function apiUploadFiles(files) {
 
     return await res.json();
 }
+
 
 // Get logged-in user's documents
 async function apiGetDocuments() {
