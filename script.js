@@ -165,18 +165,35 @@ function setupEventListeners() {
     });
 
     // Login
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) loginForm.addEventListener('submit', async e => {
+   const loginForm = document.getElementById('loginForm');
+if (loginForm) {
+    loginForm.addEventListener('submit', async e => {
         e.preventDefault();
         showError('loginError', '');
         const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
+
         try {
             const res = await apiLogin({ email, password });
-            if (res.token) { setToken(res.token); setCurrentUser(res.user); toggleNavForAuth(); showDashboard(); }
-            else showError('loginError', res.message || 'Login failed');
-        } catch (err) { showError('loginError', err.message || JSON.stringify(err)); }
+
+            if (res.token) {
+                setToken(res.token);
+
+                // ✅ works for both responses
+                const userData = res.user || res.admin;
+                setCurrentUser(userData);
+
+                toggleNavForAuth();
+                showDashboard();
+            } else {
+                showError('loginError', res.message || 'Login failed');
+            }
+        } catch (err) {
+            showError('loginError', err.message || JSON.stringify(err));
+        }
     });
+}
+
 
     // Loan form
     const loanForm = document.getElementById('loanForm');
