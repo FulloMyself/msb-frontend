@@ -10,7 +10,9 @@ const MAX_LOAN = 4000;
 /* -------------------------
    Helper functions
 ------------------------- */
-function token() { return userToken; }
+function token() {
+    return localStorage.getItem('token'); // should match what you set in setToken()
+}
 function setToken(t) { userToken = t; localStorage.setItem('userToken', t); }
 function setCurrentUser(user) { currentUser = user; localStorage.setItem('currentUser', JSON.stringify(user)); }
 
