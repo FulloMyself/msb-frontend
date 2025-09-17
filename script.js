@@ -92,8 +92,14 @@ async function apiSubmitLoan(data) {
 
 // Get logged-in user's loans
 async function apiGetLoans() {
-    const res = await fetch(`${API_URL}/loans/me`, {  // <-- change GET URL to /loans/me
-        headers: { 'Authorization': `Bearer ${userToken}` }
+    if (!userToken) throw new Error('No user token found. Please log in.');
+
+    const res = await fetch(`${API_URL}/loans/me`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${userToken}`
+        }
     });
 
     if (!res.ok) {
@@ -103,6 +109,7 @@ async function apiGetLoans() {
 
     return await res.json();
 }
+
 
 // Upload files
 async function apiUploadFiles(files) {
@@ -164,12 +171,12 @@ function setupEventListeners() {
         } catch (err) { showError('regError', err.message || JSON.stringify(err)); }
     });
 
-    // Login
    const loginForm = document.getElementById('loginForm');
 if (loginForm) {
     loginForm.addEventListener('submit', async e => {
         e.preventDefault();
         showError('loginError', '');
+
         const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
 
@@ -177,9 +184,11 @@ if (loginForm) {
             const res = await apiLogin({ email, password });
 
             if (res.token) {
-                setToken(res.token);
+                // ✅ Save token in memory and localStorage
+                userToken = res.token;       // keeps it in JS variable
+                setToken(userToken);         // stores in localStorage
 
-                // ✅ works for both responses
+                // Save current user (works for user/admin)
                 const userData = res.user || res.admin;
                 setCurrentUser(userData);
 
@@ -189,6 +198,7 @@ if (loginForm) {
                 showError('loginError', res.message || 'Login failed');
             }
         } catch (err) {
+            console.error('Login error:', err);
             showError('loginError', err.message || JSON.stringify(err));
         }
     });
