@@ -93,7 +93,7 @@ async function apiSubmitLoan(data) {
 // Get logged-in user's loans
 async function apiGetLoans() {
     const res = await fetch(`${API_URL}/loans/me`, {  // <-- change GET URL to /loans/me
-        headers: { 'Authorization': `Bearer ${token()}` }
+        headers: { 'Authorization': `Bearer ${userToken}` }
     });
 
     if (!res.ok) {
@@ -130,7 +130,7 @@ async function apiUploadFiles(files) {
 // Get logged-in user's documents
 async function apiGetDocuments() {
     const res = await fetch(`${API_URL}/docs/me`, {  // <-- change GET URL to /docs/me
-        headers: { 'Authorization': `Bearer ${token()}` }
+        headers: { 'Authorization': `Bearer ${userToken}` }
     });
 
     if (!res.ok) {
