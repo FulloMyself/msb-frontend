@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-redirect based on role
     const role = getRole();
     if (role === 'admin') {
-        window.location.href = './admin/admin.html';
+        window.location.href = '/admin/admin.html';
     } else if (role === 'user') {
         toggleNavForAuth();
         showDashboard();
