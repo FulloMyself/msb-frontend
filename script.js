@@ -10,18 +10,17 @@ const MAX_LOAN = 4000;
 /* -------------------------
    Helper functions
 ------------------------- */
-function token() { 
-    return userToken; 
+function token() {
+  return localStorage.getItem('token');
 }
-
-function setToken(t) { 
-    userToken = t;               // <--- update in-memory variable
-    localStorage.setItem('userToken', t); 
+function setToken(t) {
+  if (t) localStorage.setItem('token', t);
+  else localStorage.removeItem('token');
 }
-
 function setCurrentUser(user) {
-    currentUser = user;
-    localStorage.setItem('currentUser', JSON.stringify(user));
+  currentUser = user;
+  if (user) localStorage.setItem('currentUser', JSON.stringify(user));
+  else localStorage.removeItem('currentUser');
 }
 
 function showScreen(id) {
@@ -77,7 +76,7 @@ async function apiSubmitLoan(data) {
         method: 'POST',
         headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userToken}`
+            'Authorization': `Bearer ${token()}`
         },
         body: JSON.stringify(data)
     });
@@ -98,7 +97,7 @@ async function apiGetLoans() {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userToken}`
+            'Authorization': `Bearer ${token()}`
         }
     });
 
@@ -119,7 +118,7 @@ async function apiUploadFiles(files) {
     const res = await fetch(`${API_URL}/docs/upload`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${userToken}`  // Only Authorization header
+            'Authorization': `Bearer ${token()}`  // Only Authorization header
             // DO NOT set 'Content-Type' here
         },
         body: formData
@@ -137,7 +136,7 @@ async function apiUploadFiles(files) {
 // Get logged-in user's documents
 async function apiGetDocuments() {
     const res = await fetch(`${API_URL}/docs/me`, {  // <-- change GET URL to /docs/me
-        headers: { 'Authorization': `Bearer ${userToken}` }
+        headers: { 'Authorization': `Bearer ${token()}` }
     });
 
     if (!res.ok) {
@@ -170,40 +169,41 @@ function setupEventListeners() {
             else showError('regError', res.message || 'Registration failed');
         } catch (err) { showError('regError', err.message || JSON.stringify(err)); }
     });
-
+    // Login
    const loginForm = document.getElementById('loginForm');
-if (loginForm) {
-    loginForm.addEventListener('submit', async e => {
-        e.preventDefault();
-        showError('loginError', '');
+if (loginForm) loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  showError('loginError', '');
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
 
-        const email = document.getElementById('loginEmail').value.trim();
-        const password = document.getElementById('loginPassword').value;
+  try {
+    const res = await apiLogin({ email, password }); // apiLogin should POST /api/auth/login
+    if (res.token) {
+      setToken(res.token);
 
-        try {
-            const res = await apiLogin({ email, password });
+      // server returns role + user
+      const role = res.role || 'user';
+      // store user info
+      setCurrentUser(res.user);
 
-            if (res.token) {
-                // ✅ Save token in memory and localStorage
-                userToken = res.token;       // keeps it in JS variable
-                setToken(userToken);         // stores in localStorage
-                setCurrentUser(res.user || res.admin);
-
-                // Save current user (works for user/admin)
-                const userData = res.user || res.admin;
-                setCurrentUser(userData);
-
-                toggleNavForAuth();
-                showDashboard();
-            } else {
-                showError('loginError', res.message || 'Login failed');
-            }
-        } catch (err) {
-            console.error('Login error:', err);
-            showError('loginError', err.message || JSON.stringify(err));
-        }
-    });
-}
+      if (role === 'admin') {
+        // admin dashboard (hosted separately or in same repo)
+        // if admin.html is served from the same domain/hosting:
+        window.location.href = '/admin.html';
+        return;
+      } else {
+        // normal user flow
+        toggleNavForAuth();
+        showDashboard();
+      }
+    } else {
+      showError('loginError', res.message || 'Login failed');
+    }
+  } catch (err) {
+    showError('loginError', err.message || JSON.stringify(err));
+  }
+});
 
 
     // Loan form
