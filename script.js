@@ -2,7 +2,7 @@
    Config & State
 ------------------------- */
 const API_URL = 'https://msb-finance.onrender.com/api';
-let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+let currentUser = getCurrentUser() || null;
 const MIN_LOAN = 300;
 const MAX_LOAN = 4000;
 
@@ -39,6 +39,7 @@ function showError(elementId, msg) {
     const el = document.getElementById(elementId);
     if (el) el.textContent = msg;
 }
+
 function showSuccess(elementId, msg) {
     const el = document.getElementById(elementId);
     if (el) el.textContent = msg;
@@ -62,14 +63,18 @@ function toggleNavForAuth() {
 ------------------------- */
 async function apiRegister(data) {
     const res = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
     });
     return await res.json();
 }
 
 async function apiLogin(data) {
     const res = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
     });
     return await res.json();
 }
@@ -85,9 +90,7 @@ async function apiSubmitLoan(data) {
 }
 
 async function apiGetLoans() {
-    const res = await fetch(`${API_URL}/loans/me`, {
-        headers: { 'Authorization': `Bearer ${getToken()}` }
-    });
+    const res = await fetch(`${API_URL}/loans/me`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
     if (!res.ok) throw new Error(await res.text());
     return await res.json();
 }
@@ -95,7 +98,6 @@ async function apiGetLoans() {
 async function apiUploadFiles(files) {
     const formData = new FormData();
     files.forEach(f => formData.append('files', f));
-
     const res = await fetch(`${API_URL}/docs/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${getToken()}` },
@@ -159,82 +161,60 @@ function setupEventListeners() {
             setRole(res.role || 'user');
 
             if (res.role === 'admin') {
-                window.location.href = '/admin/admin.html';
+                window.location.href = 'https://fullomyself.github.io/msb-finance/admin/admin.html';
             } else {
                 toggleNavForAuth();
                 showDashboard();
             }
-        } catch (err) { showError('loginError', err.message || 'Unexpected error during login.'); console.error(err); }
+        } catch (err) {
+            showError('loginError', err.message || 'Unexpected error during login.');
+            console.error(err);
+        }
     });
 
-    // Loan form
+    // Loan Form, File Upload, etc. (unchanged)
     const loanForm = document.getElementById('loanForm');
-    if (loanForm) loanForm.addEventListener('submit', async e => {
-        e.preventDefault(); showError('loanError', ''); showSuccess('loanSuccess', '');
-        const amount = Number(document.getElementById('loanAmount').value);
-        const term = parseInt(document.getElementById('loanTerm').value) || 1;
-        const income = Number(document.getElementById('income').value);
-        const employment = document.getElementById('employment').value;
-        const purpose = document.getElementById('purpose').value;
+    if (loanForm) loanForm.addEventListener('submit', handleLoanSubmit);
 
-        if (isNaN(amount) || amount < MIN_LOAN || amount > MAX_LOAN)
-            return showError('loanError', `Loan amount must be between R${MIN_LOAN} and R${MAX_LOAN}`);
-        if (isNaN(income) || income <= 0) return showError('loanError', 'Please provide valid income');
-        if (amount > income * 10) return showError('loanError', 'Loan exceeds income multiple');
-
-        try {
-            const res = await apiSubmitLoan({ amount, termMonths: term, income, employment, purpose });
-            if (res.loan) { showSuccess('loanSuccess', 'Loan application submitted successfully'); setTimeout(loadLoanApplications, 800); setTimeout(() => showScreen('dashboard'), 1200); }
-            else showError('loanError', res.message || 'Application failed');
-        } catch (err) { showError('loanError', err.message || JSON.stringify(err)); }
-    });
-
-    // File upload
     const fileUpload = document.getElementById('fileUpload');
     const fileInput = document.getElementById('fileInput');
-    if (fileUpload && fileInput) {
-        fileUpload.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', async e => { await handleFilesUpload(e.target.files); fileInput.value = ''; });
-        fileUpload.addEventListener('dragover', e => { e.preventDefault(); fileUpload.classList.add('drag-over'); });
-        fileUpload.addEventListener('dragleave', () => fileUpload.classList.remove('drag-over'));
-        fileUpload.addEventListener('drop', async e => { e.preventDefault(); fileUpload.classList.remove('drag-over'); if (e.dataTransfer?.files) await handleFilesUpload(e.dataTransfer.files); });
-    }
-
-    document.addEventListener('click', e => { if (e.target?.dataset?.action === 'to-dashboard') showDashboard(); });
+    if (fileUpload && fileInput) setupFileUpload(fileUpload, fileInput);
 }
 
 /* -------------------------
-   File uploads
+   Dashboard & File Upload
 ------------------------- */
-async function handleFilesUpload(filesList) {
-    showError('docError', ''); showSuccess('docSuccess', '');
-    if (!currentUser || !token()) return showError('docError', 'You must be logged in to upload files.');
-    const files = Array.from(filesList);
-    if (!files.length) return;
+async function handleLoanSubmit(e) {
+    e.preventDefault(); showError('loanError', ''); showSuccess('loanSuccess', '');
+    const amount = Number(document.getElementById('loanAmount').value);
+    const term = parseInt(document.getElementById('loanTerm').value) || 1;
+    const income = Number(document.getElementById('income').value);
+    const employment = document.getElementById('employment').value;
+    const purpose = document.getElementById('purpose').value;
+
+    if (isNaN(amount) || amount < MIN_LOAN || amount > MAX_LOAN)
+        return showError('loanError', `Loan amount must be between R${MIN_LOAN} and R${MAX_LOAN}`);
+    if (isNaN(income) || income <= 0) return showError('loanError', 'Please provide valid income');
+    if (amount > income * 10) return showError('loanError', 'Loan exceeds income multiple');
 
     try {
-        const res = await apiUploadFiles(files);
-        if (res.uploaded) { showSuccess('docSuccess', 'Files uploaded successfully'); setTimeout(loadUserDocuments, 700); }
-        else showError('docError', res.message || 'Upload failed');
-    } catch (err) { showError('docError', err.message || JSON.stringify(err)); }
+        const res = await apiSubmitLoan({ amount, termMonths: term, income, employment, purpose });
+        if (res.loan) {
+            showSuccess('loanSuccess', 'Loan application submitted successfully');
+            setTimeout(loadLoanApplications, 800);
+            setTimeout(() => showScreen('dashboard'), 1200);
+        } else showError('loanError', res.message || 'Application failed');
+    } catch (err) { showError('loanError', err.message || JSON.stringify(err)); }
 }
 
-async function loadUserDocuments() {
-    try {
-        const res = await apiGetDocuments();
-        const docs = (res.docs || []).filter(d => d.user._id === currentUser.id);
-        const container = document.getElementById('uploadedFiles');
-        if (!docs.length) { container.innerHTML = ''; return; }
-        container.innerHTML = `
-            <h4 style="margin:1rem 0;">Uploaded Documents</h4>
-            ${docs.map(d => `<div class="file-item"><div><strong>${d.filename}</strong><br><small>${new Date(d.uploadedAt).toLocaleDateString()}</small></div></div>`).join('')}
-        `;
-    } catch (err) { console.error(err); }
+function setupFileUpload(uploadBtn, inputElem) {
+    uploadBtn.addEventListener('click', () => inputElem.click());
+    inputElem.addEventListener('change', async e => { await handleFilesUpload(e.target.files); inputElem.value = ''; });
+    uploadBtn.addEventListener('dragover', e => { e.preventDefault(); uploadBtn.classList.add('drag-over'); });
+    uploadBtn.addEventListener('dragleave', () => uploadBtn.classList.remove('drag-over'));
+    uploadBtn.addEventListener('drop', async e => { e.preventDefault(); uploadBtn.classList.remove('drag-over'); if (e.dataTransfer?.files) await handleFilesUpload(e.dataTransfer.files); });
 }
 
-/* -------------------------
-   Dashboard helpers
-------------------------- */
 async function loadLoanApplications() {
     try {
         const data = await apiGetLoans();
@@ -262,7 +242,11 @@ async function loadUserDocuments() {
 
 function showDashboard() {
     currentUser = getCurrentUser();
-    if (!currentUser || !getToken()) { setCurrentUser(null); setToken(null); setRole(null); toggleNavForAuth(); return showScreen('hero'); }
+    if (!currentUser || !getToken()) {
+        setCurrentUser(null); setToken(null); setRole(null);
+        toggleNavForAuth();
+        return showScreen('hero');
+    }
     document.getElementById('userName') && (document.getElementById('userName').textContent = currentUser.name);
     document.getElementById('userEmail') && (document.getElementById('userEmail').textContent = currentUser.email);
     toggleNavForAuth();
@@ -278,6 +262,7 @@ function logout() {
     setToken(null);
     setCurrentUser(null);
     setRole(null);
+    toggleNavForAuth();
     showScreen('login');
 }
 
@@ -287,14 +272,16 @@ function logout() {
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
 
-    // Auto-redirect based on role
+    // Auto-redirect based on role and token
+    const token = getToken();
     const role = getRole();
-    if (role === 'admin') {
-        window.location.href = '/admin/admin.html';
-    } else if (role === 'user') {
-        toggleNavForAuth();
-        showDashboard();
+    const user = getCurrentUser();
+
+    if (token && user) {
+        if (role === 'admin') window.location.href = 'https://fullomyself.github.io/msb-finance/admin/admin.html';
+        else showDashboard();
     } else {
         showScreen('hero');
+        toggleNavForAuth();
     }
 });
