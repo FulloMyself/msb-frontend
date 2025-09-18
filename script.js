@@ -3,26 +3,30 @@
 ------------------------- */
 const API_URL = 'https://msb-finance.onrender.com/api';
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
-let userToken = localStorage.getItem('userToken') || null;
 const MIN_LOAN = 300;
 const MAX_LOAN = 4000;
 
 /* -------------------------
-   Helper functions
+   Token & Role helpers
 ------------------------- */
-function token() {
-  return localStorage.getItem('token');
-}
-function setToken(t) {
-  if (t) localStorage.setItem('token', t);
-  else localStorage.removeItem('token');
+function getToken() { return localStorage.getItem('token'); }
+function setToken(token) { if (token) localStorage.setItem('token', token); else localStorage.removeItem('token'); }
+
+function getCurrentUser() {
+    const u = localStorage.getItem('currentUser');
+    return u ? JSON.parse(u) : null;
 }
 function setCurrentUser(user) {
-  currentUser = user;
-  if (user) localStorage.setItem('currentUser', JSON.stringify(user));
-  else localStorage.removeItem('currentUser');
+    if (user) localStorage.setItem('currentUser', JSON.stringify(user));
+    else localStorage.removeItem('currentUser');
 }
 
+function getRole() { return localStorage.getItem('role'); }
+function setRole(role) { if (role) localStorage.setItem('role', role); else localStorage.removeItem('role'); }
+
+/* -------------------------
+   Screen & UI helpers
+------------------------- */
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const hero = document.getElementById('hero');
@@ -35,7 +39,6 @@ function showError(elementId, msg) {
     const el = document.getElementById(elementId);
     if (el) el.textContent = msg;
 }
-
 function showSuccess(elementId, msg) {
     const el = document.getElementById(elementId);
     if (el) el.textContent = msg;
@@ -44,7 +47,8 @@ function showSuccess(elementId, msg) {
 function toggleNavForAuth() {
     const nav = document.getElementById('navButtons');
     if (!nav) return;
-    if (currentUser && token()) {
+    currentUser = getCurrentUser();
+    if (currentUser && getToken()) {
         nav.innerHTML = `<span style="color:white">Welcome, ${currentUser.name}</span>
                          <button class="btn-secondary" onclick="logout()">Logout</button>`;
     } else {
@@ -70,80 +74,40 @@ async function apiLogin(data) {
     return await res.json();
 }
 
-// Submit a new loan
 async function apiSubmitLoan(data) {
-    const res = await fetch(`${API_URL}/loans`, {  // POST /loans is correct
+    const res = await fetch(`${API_URL}/loans`, {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token()}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify(data)
     });
-
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Error submitting loan: ${text}`);
-    }
-
+    if (!res.ok) throw new Error(await res.text());
     return await res.json();
 }
 
-// Get logged-in user's loans
 async function apiGetLoans() {
-    if (!userToken) throw new Error('No user token found. Please log in.');
-
     const res = await fetch(`${API_URL}/loans/me`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token()}`
-        }
+        headers: { 'Authorization': `Bearer ${getToken()}` }
     });
-
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Error fetching loans: ${text}`);
-    }
-
+    if (!res.ok) throw new Error(await res.text());
     return await res.json();
 }
 
-
-// Upload files
 async function apiUploadFiles(files) {
     const formData = new FormData();
     files.forEach(f => formData.append('files', f));
 
     const res = await fetch(`${API_URL}/docs/upload`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token()}`  // Only Authorization header
-            // DO NOT set 'Content-Type' here
-        },
+        headers: { 'Authorization': `Bearer ${getToken()}` },
         body: formData
     });
-
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Error uploading files: ${text}`);
-    }
-
+    if (!res.ok) throw new Error(await res.text());
     return await res.json();
 }
 
-
-// Get logged-in user's documents
 async function apiGetDocuments() {
-    const res = await fetch(`${API_URL}/docs/me`, {  // <-- change GET URL to /docs/me
-        headers: { 'Authorization': `Bearer ${token()}` }
-    });
-
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Error fetching documents: ${text}`);
-    }
-
+    const res = await fetch(`${API_URL}/docs/me`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+    if (!res.ok) throw new Error(await res.text());
     return await res.json();
 }
 
@@ -163,48 +127,45 @@ function setupEventListeners() {
         const confirm = document.getElementById('regConfirmPassword').value;
         if (password !== confirm) return showError('regError', 'Passwords do not match');
         if (password.length < 6) return showError('regError', 'Password must be at least 6 characters');
+
         try {
             const res = await apiRegister({ name, email, phone, password });
-            if (res.token) { setToken(res.token); setCurrentUser(res.user); toggleNavForAuth(); showDashboard(); }
-            else showError('regError', res.message || 'Registration failed');
+            if (res.token) {
+                setToken(res.token);
+                setCurrentUser(res.user);
+                setRole(res.role || 'user');
+                toggleNavForAuth();
+                showDashboard();
+            } else showError('regError', res.message || 'Registration failed');
         } catch (err) { showError('regError', err.message || JSON.stringify(err)); }
     });
+
     // Login
-   const loginForm = document.getElementById('loginForm');
-if (loginForm) loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  showError('loginError', '');
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value;
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) loginForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        showError('loginError', '');
 
-  try {
-    const res = await apiLogin({ email, password }); // apiLogin should POST /api/auth/login
-    if (res.token) {
-      setToken(res.token);
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        if (!email || !password) return showError('loginError', 'Please enter both email and password.');
 
-      // server returns role + user
-      const role = res.role || 'user';
-      // store user info
-      setCurrentUser(res.user);
+        try {
+            const res = await apiLogin({ email, password });
+            if (!res.token) return showError('loginError', res.message || 'Login failed');
 
-      if (role === 'admin') {
-        // admin dashboard (hosted separately or in same repo)
-        // if admin.html is served from the same domain/hosting:
-        window.location.href = '/admin.html';
-        return;
-      } else {
-        // normal user flow
-        toggleNavForAuth();
-        showDashboard();
-      }
-    } else {
-      showError('loginError', res.message || 'Login failed');
-    }
-  } catch (err) {
-    showError('loginError', err.message || JSON.stringify(err));
-  }
-});
+            setToken(res.token);
+            setCurrentUser(res.user);
+            setRole(res.role || 'user');
 
+            if (res.role === 'admin') {
+                window.location.href = '/admin.html';
+            } else {
+                toggleNavForAuth();
+                showDashboard();
+            }
+        } catch (err) { showError('loginError', err.message || 'Unexpected error during login.'); console.error(err); }
+    });
 
     // Loan form
     const loanForm = document.getElementById('loanForm');
@@ -272,46 +233,38 @@ async function loadUserDocuments() {
 }
 
 /* -------------------------
-   Dashboard
+   Dashboard helpers
 ------------------------- */
 async function loadLoanApplications() {
-  try {
-    const res = await fetch('https://msb-finance.onrender.com/api/loans/me', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
+    try {
+        const data = await apiGetLoans();
+        const container = document.getElementById('loan-list');
+        container.innerHTML = '';
+        (data.loans || []).forEach(loan => {
+            const li = document.createElement('li');
+            li.textContent = `R${loan.amount} - ${loan.termMonths} months`;
+            container.appendChild(li);
+        });
+    } catch (err) { console.error("Error loading loans:", err); }
+}
 
-    if (!res.ok) {
-      throw new Error('Failed to fetch loans');
-    }
-
-    const data = await res.json();
-    console.log("Loans:", data);
-
-    // Example: populate dashboard with loans
-    const container = document.getElementById('loan-list');
-    container.innerHTML = '';
-    data.loans.forEach(loan => {
-      const li = document.createElement('li');
-      li.textContent = `R${loan.amount} - ${loan.termMonths} months`;
-      container.appendChild(li);
-    });
-  } catch (err) {
-    console.error("Error loading loans:", err);
-  }
+async function loadUserDocuments() {
+    try {
+        const res = await apiGetDocuments();
+        const docs = (res.docs || []).filter(d => d.user._id === currentUser.id);
+        const container = document.getElementById('uploadedFiles');
+        container.innerHTML = docs.length ? `
+            <h4 style="margin:1rem 0;">Uploaded Documents</h4>
+            ${docs.map(d => `<div class="file-item"><div><strong>${d.filename}</strong><br><small>${new Date(d.uploadedAt).toLocaleDateString()}</small></div></div>`).join('')}
+        ` : '';
+    } catch (err) { console.error(err); }
 }
 
 function showDashboard() {
-    if (!currentUser) {
-        const saved = JSON.parse(localStorage.getItem('currentUser') || 'null');
-        if (saved) currentUser = saved;
-    }
-    if (!currentUser || !token()) { setCurrentUser(null); setToken(null); toggleNavForAuth(); return showScreen('hero'); }
-
+    currentUser = getCurrentUser();
+    if (!currentUser || !getToken()) { setCurrentUser(null); setToken(null); setRole(null); toggleNavForAuth(); return showScreen('hero'); }
     document.getElementById('userName') && (document.getElementById('userName').textContent = currentUser.name);
     document.getElementById('userEmail') && (document.getElementById('userEmail').textContent = currentUser.email);
-
     toggleNavForAuth();
     loadLoanApplications();
     loadUserDocuments();
@@ -322,14 +275,26 @@ function showDashboard() {
    Logout
 ------------------------- */
 function logout() {
-    localStorage.removeItem('userToken');
-    localStorage.removeItem('currentUser');
-    currentUser = null;
-    // Optionally redirect or hide dashboard
+    setToken(null);
+    setCurrentUser(null);
+    setRole(null);
     showScreen('login');
 }
 
 /* -------------------------
    Init
 ------------------------- */
-document.addEventListener('DOMContentLoaded', setupEventListeners);
+document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+
+    // Auto-redirect based on role
+    const role = getRole();
+    if (role === 'admin') {
+        window.location.href = '/admin.html';
+    } else if (role === 'user') {
+        toggleNavForAuth();
+        showDashboard();
+    } else {
+        showScreen('hero');
+    }
+});
