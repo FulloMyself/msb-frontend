@@ -159,7 +159,7 @@ function setupEventListeners() {
             setRole(res.role || 'user');
 
             if (res.role === 'admin') {
-                window.location.href = './admin/admin.html';
+                window.location.href = '/admin/admin.html';
             } else {
                 toggleNavForAuth();
                 showDashboard();
