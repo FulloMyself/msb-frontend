@@ -2,9 +2,10 @@
    Config & State
 ------------------------- */
 const API_URL = 'https://msb-finance.onrender.com/api';
-let currentUser = getCurrentUser() || null;
+const ADMIN_URL = 'https://fullomyself.github.io/msb-finance/admin/admin.html';
 const MIN_LOAN = 300;
 const MAX_LOAN = 4000;
+let currentUser = getCurrentUser() || null;
 
 /* -------------------------
    Token & Role helpers
@@ -23,6 +24,8 @@ function setCurrentUser(user) {
 
 function getRole() { return localStorage.getItem('role'); }
 function setRole(role) { if (role) localStorage.setItem('role', role); else localStorage.removeItem('role'); }
+
+function isLoggedIn() { return getToken() && getCurrentUser(); }
 
 /* -------------------------
    Screen & UI helpers
@@ -114,7 +117,7 @@ async function apiGetDocuments() {
 }
 
 /* -------------------------
-   Event handlers
+   Event Handlers
 ------------------------- */
 function setupEventListeners() {
     // Registration
@@ -147,7 +150,6 @@ function setupEventListeners() {
     if (loginForm) loginForm.addEventListener('submit', async e => {
         e.preventDefault();
         showError('loginError', '');
-
         const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
         if (!email || !password) return showError('loginError', 'Please enter both email and password.');
@@ -160,9 +162,8 @@ function setupEventListeners() {
             setCurrentUser(res.user);
             setRole(res.role || 'user');
 
-            if (res.role === 'admin') {
-                window.location.href = 'https://fullomyself.github.io/msb-finance/admin/admin.html';
-            } else {
+            if (res.role === 'admin') window.location.href = ADMIN_URL;
+            else {
                 toggleNavForAuth();
                 showDashboard();
             }
@@ -172,20 +173,23 @@ function setupEventListeners() {
         }
     });
 
-    // Loan Form, File Upload, etc. (unchanged)
+    // Loan form
     const loanForm = document.getElementById('loanForm');
     if (loanForm) loanForm.addEventListener('submit', handleLoanSubmit);
 
+    // File upload
     const fileUpload = document.getElementById('fileUpload');
     const fileInput = document.getElementById('fileInput');
     if (fileUpload && fileInput) setupFileUpload(fileUpload, fileInput);
 }
 
 /* -------------------------
-   Dashboard & File Upload
+   Loan & File Upload Handlers
 ------------------------- */
 async function handleLoanSubmit(e) {
-    e.preventDefault(); showError('loanError', ''); showSuccess('loanSuccess', '');
+    e.preventDefault();
+    showError('loanError', '');
+    showSuccess('loanSuccess', '');
     const amount = Number(document.getElementById('loanAmount').value);
     const term = parseInt(document.getElementById('loanTerm').value) || 1;
     const income = Number(document.getElementById('income').value);
@@ -212,13 +216,37 @@ function setupFileUpload(uploadBtn, inputElem) {
     inputElem.addEventListener('change', async e => { await handleFilesUpload(e.target.files); inputElem.value = ''; });
     uploadBtn.addEventListener('dragover', e => { e.preventDefault(); uploadBtn.classList.add('drag-over'); });
     uploadBtn.addEventListener('dragleave', () => uploadBtn.classList.remove('drag-over'));
-    uploadBtn.addEventListener('drop', async e => { e.preventDefault(); uploadBtn.classList.remove('drag-over'); if (e.dataTransfer?.files) await handleFilesUpload(e.dataTransfer.files); });
+    uploadBtn.addEventListener('drop', async e => { 
+        e.preventDefault(); 
+        uploadBtn.classList.remove('drag-over'); 
+        if (e.dataTransfer?.files) await handleFilesUpload(e.dataTransfer.files); 
+    });
 }
 
+async function handleFilesUpload(filesList) {
+    showError('docError', '');
+    showSuccess('docSuccess', '');
+    if (!isLoggedIn()) return showError('docError', 'You must be logged in to upload files.');
+    const files = Array.from(filesList);
+    if (!files.length) return;
+
+    try {
+        const res = await apiUploadFiles(files);
+        if (res.uploaded) {
+            showSuccess('docSuccess', 'Files uploaded successfully');
+            setTimeout(loadUserDocuments, 800);
+        } else showError('docError', res.message || 'Upload failed');
+    } catch (err) { showError('docError', err.message || JSON.stringify(err)); }
+}
+
+/* -------------------------
+   Load Dashboard Data
+------------------------- */
 async function loadLoanApplications() {
     try {
         const data = await apiGetLoans();
         const container = document.getElementById('loan-list');
+        if (!container) return;
         container.innerHTML = '';
         (data.loans || []).forEach(loan => {
             const li = document.createElement('li');
@@ -233,6 +261,7 @@ async function loadUserDocuments() {
         const res = await apiGetDocuments();
         const docs = (res.docs || []).filter(d => d.user._id === currentUser.id);
         const container = document.getElementById('uploadedFiles');
+        if (!container) return;
         container.innerHTML = docs.length ? `
             <h4 style="margin:1rem 0;">Uploaded Documents</h4>
             ${docs.map(d => `<div class="file-item"><div><strong>${d.filename}</strong><br><small>${new Date(d.uploadedAt).toLocaleDateString()}</small></div></div>`).join('')}
@@ -243,9 +272,8 @@ async function loadUserDocuments() {
 function showDashboard() {
     currentUser = getCurrentUser();
     if (!currentUser || !getToken()) {
-        setCurrentUser(null); setToken(null); setRole(null);
-        toggleNavForAuth();
-        return showScreen('hero');
+        logout();
+        return;
     }
     document.getElementById('userName') && (document.getElementById('userName').textContent = currentUser.name);
     document.getElementById('userEmail') && (document.getElementById('userEmail').textContent = currentUser.email);
@@ -272,13 +300,9 @@ function logout() {
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
 
-    // Auto-redirect based on role and token
-    const token = getToken();
-    const role = getRole();
-    const user = getCurrentUser();
-
-    if (token && user) {
-        if (role === 'admin') window.location.href = 'https://fullomyself.github.io/msb-finance/admin/admin.html';
+    if (isLoggedIn()) {
+        const role = getRole();
+        if (role === 'admin') window.location.href = ADMIN_URL;
         else showDashboard();
     } else {
         showScreen('hero');
