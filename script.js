@@ -159,7 +159,7 @@ function setupEventListeners() {
             setRole(res.role || 'user');
 
             if (res.role === 'admin') {
-                window.location.href = '/admin.html';
+                window.location.href = './admin/admin.html';
             } else {
                 toggleNavForAuth();
                 showDashboard();
@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-redirect based on role
     const role = getRole();
     if (role === 'admin') {
-        window.location.href = '/admin.html';
+        window.location.href = './admin/admin.html';
     } else if (role === 'user') {
         toggleNavForAuth();
         showDashboard();
